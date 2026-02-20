@@ -21,7 +21,7 @@ The native binary for your platform is downloaded and cached automatically on fi
 ## Usage
 
 ```typescript
-import "./mod.ts";
+import "jsr:@9h/webmidi";
 
 navigator.requestMIDIAccess().then((midiAccess) => {
     // Get the first available output

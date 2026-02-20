@@ -2,10 +2,8 @@ const REPO = "1001harps/deno-webmidi";
 const VERSION = "0.1.0";
 
 const PLATFORM_MAP: Record<string, string> = {
-  "x86_64-darwin": "libmidi-x86_64-apple-darwin.dylib",
   "aarch64-darwin": "libmidi-aarch64-apple-darwin.dylib",
   "x86_64-linux": "libmidi-x86_64-unknown-linux-gnu.so",
-  "x86_64-windows": "libmidi-x86_64-pc-windows-gnu.dll",
 };
 
 export async function loadBinary(): Promise<string> {

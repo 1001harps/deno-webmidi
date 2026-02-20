@@ -13,10 +13,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-apple-darwin
-            os: macos-13
-            name: libmidi-x86_64-apple-darwin.dylib
-            lib: libmidi.dylib
           - target: aarch64-apple-darwin
             os: macos-latest
             name: libmidi-aarch64-apple-darwin.dylib
@@ -25,10 +21,7 @@ jobs:
             os: ubuntu-latest
             name: libmidi-x86_64-unknown-linux-gnu.so
             lib: libmidi.so
-          - target: x86_64-pc-windows-gnu
-            os: windows-latest
-            name: libmidi-x86_64-pc-windows-gnu.dll
-            lib: midi.dll
+
 
     steps:
       - name: Checkout code
@@ -43,13 +36,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev
+          sudo apt-get install -y libportmidi-dev libasound2-dev
 
       - name: Install system dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          # PortMIDI should be available via Homebrew if needed
-          # brew install portmidi
+          brew install portmidi
 
       - name: Build binary
         run: |
@@ -57,6 +49,7 @@ jobs:
           cargo build --release --target ${{ matrix.target }}
 
       - name: Copy and rename binary
+        shell: bash
         run: |
           mkdir -p artifacts
           cp bindings/midi/target/${{ matrix.target }}/release/${{ matrix.lib }} artifacts/${{ matrix.name }}

@@ -1,4 +1,4 @@
-/// <reference types="@types/webmidi" />
+/// <reference types="npm:@types/webmidi@2.1.0" />
 import {
   load,
   midi_init,

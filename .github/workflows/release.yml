@@ -1,4 +1,4 @@
-name: Build Cross-Platform Binaries
+name: Release
 
 on:
   push:

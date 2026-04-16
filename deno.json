@@ -9,6 +9,7 @@
     "test": "MIDI_BINARY_PATH=$(pwd)/bindings/midi/target/release/libmidi.dylib deno run --allow-ffi --allow-env --allow-read midi_test.ts",
     "test:integration": "./test/integration/run.sh"
   },
+  "runtimes": ["deno"],
   "license": "MIT",
   "publish": {
     "exclude": ["midi_test.ts", "test/"]

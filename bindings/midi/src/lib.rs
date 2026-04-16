@@ -8,9 +8,10 @@ extern crate portmidi as pm;
 
 struct MidiState {
     context: pm::PortMidi,
-    // SAFETY: InputPorts borrow from context in the same struct, stored in a
+    // SAFETY: Ports borrow from context in the same struct, stored in a
     // static Mutex. The context is never dropped while ports exist.
     input_ports: HashMap<i32, pm::InputPort<'static>>,
+    output_ports: HashMap<i32, pm::OutputPort<'static>>,
 }
 
 static MIDI_STATE: Mutex<Option<MidiState>> = Mutex::new(None);
@@ -36,6 +37,7 @@ pub fn midi_init() {
         *state = Some(MidiState {
             context: pm::PortMidi::new().unwrap(),
             input_ports: HashMap::new(),
+            output_ports: HashMap::new(),
         });
     }
 }
@@ -69,15 +71,44 @@ pub fn midi_devices() -> *const c_char {
 }
 
 #[deno_bindgen]
-pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3: u8) {
-    let state = MIDI_STATE.lock().unwrap();
-    let s = state.as_ref().expect("MIDI not initialized");
+pub fn midi_open_output(device_id: i32) -> i32 {
+    let mut state = MIDI_STATE.lock().unwrap();
+    let s = state.as_mut().expect("MIDI not initialized");
 
-    let mut out_port = s
+    if s.output_ports.contains_key(&device_id) {
+        return 0;
+    }
+
+    let port = match s
         .context
         .device(device_id)
         .and_then(|dev| s.context.output_port(dev, 1024))
-        .unwrap();
+    {
+        Ok(port) => port,
+        Err(_) => return -1,
+    };
+    let port: pm::OutputPort<'static> = unsafe { std::mem::transmute(port) };
+    s.output_ports.insert(device_id, port);
+    0
+}
+
+#[deno_bindgen]
+pub fn midi_close_output(device_id: i32) {
+    let mut state = MIDI_STATE.lock().unwrap();
+    if let Some(s) = state.as_mut() {
+        s.output_ports.remove(&device_id);
+    }
+}
+
+#[deno_bindgen]
+pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3: u8) {
+    let mut state = MIDI_STATE.lock().unwrap();
+    let s = state.as_mut().expect("MIDI not initialized");
+
+    let port = s
+        .output_ports
+        .get_mut(&device_id)
+        .expect("Output port not open");
 
     let message = pm::MidiMessage {
         status,
@@ -86,7 +117,7 @@ pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3
         data3,
     };
 
-    let _ = out_port.write_message(message);
+    let _ = port.write_message(message);
 }
 
 #[deno_bindgen]

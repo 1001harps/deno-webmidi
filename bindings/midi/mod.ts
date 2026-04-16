@@ -29,6 +29,16 @@ export function load(path: string) {
       result: "i32",
       nonblocking: false,
     },
+    midi_open_output: {
+      parameters: ["i32"],
+      result: "i32",
+      nonblocking: false,
+    },
+    midi_close_output: {
+      parameters: ["i32"],
+      result: "void",
+      nonblocking: false,
+    },
     midi_read_messages: {
       parameters: ["i32"],
       result: "pointer",
@@ -74,4 +84,12 @@ export function midi_read_messages(
 
 export function midi_close_input(device_id: number): void {
   return symbols.midi_close_input(device_id);
+}
+
+export function midi_open_output(device_id: number): number {
+  return symbols.midi_open_output(device_id);
+}
+
+export function midi_close_output(device_id: number): void {
+  return symbols.midi_close_output(device_id);
 }

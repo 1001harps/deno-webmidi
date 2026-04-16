@@ -2,9 +2,11 @@
 import {
   load,
   midi_close_input,
+  midi_close_output,
   midi_devices,
   midi_init,
   midi_open_input,
+  midi_open_output,
   midi_read_messages,
   midi_send_message,
 } from "./bindings/midi/mod.ts";
@@ -49,7 +51,7 @@ export class MIDIInput implements WebMidi.MIDIInput {
   manufacturer?: string | undefined;
   name?: string | undefined;
   version?: string | undefined;
-  state: WebMidi.MIDIPortDeviceState = "disconnected";
+  state: WebMidi.MIDIPortDeviceState = "connected";
   connection: WebMidi.MIDIPortConnectionState = "closed";
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
 
@@ -65,33 +67,52 @@ export class MIDIInput implements WebMidi.MIDIInput {
   }
 
   set onmidimessage(handler: ((e: WebMidi.MIDIMessageEvent) => void) | null) {
-    // Stop existing polling
-    if (this._pollInterval !== null) {
-      clearInterval(this._pollInterval);
-      this._pollInterval = null;
-      midi_close_input(parseInt(this.id));
-      this.connection = "closed";
-    }
-
     this._onmidimessage = handler;
 
     if (handler) {
-      const deviceId = parseInt(this.id);
-      const result = midi_open_input(deviceId);
-      if (result < 0) {
-        throw new Error(`Failed to open input device ${this.id}`);
+      // Implicitly open if not already open (per Web MIDI spec)
+      if (this.connection !== "open") {
+        this._openPort();
       }
-      this.connection = "open";
+      this._startPolling();
+    } else {
+      this._stopPolling();
+    }
+  }
 
-      this._pollInterval = setInterval(() => {
-        const messages = parseMessages(midi_read_messages(deviceId));
-        for (const msg of messages) {
-          const event = new MIDIMessageEvent("midimessage", {
-            data: new Uint8Array(msg),
-          });
-          handler(event);
-        }
-      }, 5);
+  private _openPort(): void {
+    const deviceId = parseInt(this.id);
+    const result = midi_open_input(deviceId);
+    if (result < 0) {
+      throw new Error(`Failed to open input device ${this.id}`);
+    }
+    this.connection = "open";
+  }
+
+  private _closePort(): void {
+    this._stopPolling();
+    midi_close_input(parseInt(this.id));
+    this.connection = "closed";
+  }
+
+  private _startPolling(): void {
+    if (this._pollInterval !== null) return;
+    const deviceId = parseInt(this.id);
+    this._pollInterval = setInterval(() => {
+      const messages = parseMessages(midi_read_messages(deviceId));
+      for (const msg of messages) {
+        const event = new MIDIMessageEvent("midimessage", {
+          data: new Uint8Array(msg),
+        });
+        this._onmidimessage?.(event);
+      }
+    }, 5);
+  }
+
+  private _stopPolling(): void {
+    if (this._pollInterval !== null) {
+      clearInterval(this._pollInterval);
+      this._pollInterval = null;
     }
   }
 
@@ -108,11 +129,19 @@ export class MIDIInput implements WebMidi.MIDIInput {
   }
 
   open(): Promise<WebMidi.MIDIPort> {
-    throw new Error("Method not implemented.");
+    if (this.connection !== "open") {
+      this._openPort();
+    }
+    return Promise.resolve(this);
   }
+
   close(): Promise<WebMidi.MIDIPort> {
-    throw new Error("Method not implemented.");
+    if (this.connection === "open") {
+      this._closePort();
+    }
+    return Promise.resolve(this);
   }
+
   dispatchEvent(event: Event): boolean {
     throw new Error("Method not implemented.");
   }
@@ -124,7 +153,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
   manufacturer?: string | undefined;
   name?: string | undefined;
   version?: string | undefined;
-  state: WebMidi.MIDIPortDeviceState = "disconnected";
+  state: WebMidi.MIDIPortDeviceState = "connected";
   connection: WebMidi.MIDIPortConnectionState = "closed";
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
   onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
@@ -143,15 +172,37 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
     throw new Error("Method not implemented.");
   }
   open(): Promise<WebMidi.MIDIPort> {
-    throw new Error("Method not implemented.");
+    if (this.connection !== "open") {
+      const deviceId = parseInt(this.id);
+      const result = midi_open_output(deviceId);
+      if (result < 0) {
+        throw new Error(`Failed to open output device ${this.id}`);
+      }
+      this.connection = "open";
+    }
+    return Promise.resolve(this);
   }
   close(): Promise<WebMidi.MIDIPort> {
-    throw new Error("Method not implemented.");
+    if (this.connection === "open") {
+      midi_close_output(parseInt(this.id));
+      this.connection = "closed";
+    }
+    return Promise.resolve(this);
   }
   dispatchEvent(event: Event): boolean {
     throw new Error("Method not implemented.");
   }
   send(data: number[] | Uint8Array, _timestamp?: number): void {
+    // Implicitly open if not already open (per Web MIDI spec)
+    if (this.connection !== "open") {
+      const deviceId = parseInt(this.id);
+      const result = midi_open_output(deviceId);
+      if (result < 0) {
+        throw new Error(`Failed to open output device ${this.id}`);
+      }
+      this.connection = "open";
+    }
+
     // Convert Uint8Array to number array if needed
     const bytes = Array.isArray(data) ? data : Array.from(data);
 

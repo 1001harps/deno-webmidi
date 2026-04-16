@@ -20,12 +20,7 @@ export function load(path: string) {
       nonblocking: false,
     },
     midi_send_message: {
-      parameters: [
-        "u8",
-        "u8",
-        "u8",
-        "u8",
-      ],
+      parameters: ["i32", "u8", "u8", "u8", "u8"],
       result: "void",
       nonblocking: false,
     },
@@ -43,15 +38,11 @@ export function midi_devices(): Deno.PointerObject | null {
 }
 
 export function midi_send_message(
+  device_id: number,
   arg0: number,
   arg1: number,
   arg2: number,
   arg3: number,
 ): void {
-  return symbols.midi_send_message(
-    arg0,
-    arg1,
-    arg2,
-    arg3,
-  );
+  return symbols.midi_send_message(device_id, arg0, arg1, arg2, arg3);
 }

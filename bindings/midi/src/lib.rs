@@ -58,14 +58,12 @@ pub fn midi_devices() -> *const c_char {
 }
 
 #[deno_bindgen]
-pub fn midi_send_message(status: u8, data1: u8, data2: u8, data3: u8) {
+pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3: u8) {
     let context = MIDI_CONTEXT.lock().unwrap();
     let ctx = context.as_ref().expect("MIDI not initialized");
 
-    let id = ctx.default_output_device_id().unwrap();
-
     let mut out_port = ctx
-        .device(id)
+        .device(device_id)
         .and_then(|dev| ctx.output_port(dev, 1024))
         .unwrap();
 

@@ -105,8 +105,9 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       throw new Error("MIDI message must be at least 3 bytes long");
     }
 
-    // Use the general midi_send_message function
+    // Send to the specific device by ID
     midi_send_message(
+      parseInt(this.id),
       bytes[0],
       bytes[1],
       bytes[2],

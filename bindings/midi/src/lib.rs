@@ -1,11 +1,19 @@
 use deno_bindgen::deno_bindgen;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::sync::Mutex;
 extern crate portmidi as pm;
 
-static MIDI_CONTEXT: Mutex<Option<pm::PortMidi>> = Mutex::new(None);
+struct MidiState {
+    context: pm::PortMidi,
+    // SAFETY: InputPorts borrow from context in the same struct, stored in a
+    // static Mutex. The context is never dropped while ports exist.
+    input_ports: HashMap<i32, pm::InputPort<'static>>,
+}
+
+static MIDI_STATE: Mutex<Option<MidiState>> = Mutex::new(None);
 
 #[derive(Serialize, Deserialize)]
 #[deno_bindgen]
@@ -23,18 +31,21 @@ pub struct MidiDevices {
 
 #[deno_bindgen]
 pub fn midi_init() {
-    let mut context = MIDI_CONTEXT.lock().unwrap();
-    if context.is_none() {
-        *context = Some(pm::PortMidi::new().unwrap());
+    let mut state = MIDI_STATE.lock().unwrap();
+    if state.is_none() {
+        *state = Some(MidiState {
+            context: pm::PortMidi::new().unwrap(),
+            input_ports: HashMap::new(),
+        });
     }
 }
 
 #[deno_bindgen]
 pub fn midi_devices() -> *const c_char {
-    let context = MIDI_CONTEXT.lock().unwrap();
-    let ctx = context.as_ref().expect("MIDI not initialized");
+    let state = MIDI_STATE.lock().unwrap();
+    let s = state.as_ref().expect("MIDI not initialized");
 
-    let device_list = ctx.devices().unwrap();
+    let device_list = s.context.devices().unwrap();
 
     let mut inputs = vec![];
     let mut outputs = vec![];
@@ -59,12 +70,13 @@ pub fn midi_devices() -> *const c_char {
 
 #[deno_bindgen]
 pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3: u8) {
-    let context = MIDI_CONTEXT.lock().unwrap();
-    let ctx = context.as_ref().expect("MIDI not initialized");
+    let state = MIDI_STATE.lock().unwrap();
+    let s = state.as_ref().expect("MIDI not initialized");
 
-    let mut out_port = ctx
+    let mut out_port = s
+        .context
         .device(device_id)
-        .and_then(|dev| ctx.output_port(dev, 1024))
+        .and_then(|dev| s.context.output_port(dev, 1024))
         .unwrap();
 
     let message = pm::MidiMessage {
@@ -75,4 +87,65 @@ pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3
     };
 
     let _ = out_port.write_message(message);
+}
+
+#[deno_bindgen]
+pub fn midi_open_input(device_id: i32) -> i32 {
+    let mut state = MIDI_STATE.lock().unwrap();
+    let s = state.as_mut().expect("MIDI not initialized");
+
+    if s.input_ports.contains_key(&device_id) {
+        return 0; // already open
+    }
+
+    let port = match s
+        .context
+        .device(device_id)
+        .and_then(|dev| s.context.input_port(dev, 1024))
+    {
+        Ok(port) => port,
+        Err(_) => return -1,
+    };
+    // SAFETY: The port borrows from s.context which lives in a static Mutex.
+    // The context outlives the port because we always remove ports before the
+    // static is dropped (which effectively never happens).
+    let port: pm::InputPort<'static> = unsafe { std::mem::transmute(port) };
+    s.input_ports.insert(device_id, port);
+    0
+}
+
+#[deno_bindgen]
+pub fn midi_read_messages(device_id: i32) -> *const c_char {
+    let mut state = MIDI_STATE.lock().unwrap();
+    let s = state.as_mut().expect("MIDI not initialized");
+
+    let port = match s.input_ports.get_mut(&device_id) {
+        Some(p) => p,
+        None => {
+            let empty = CString::new("[]").unwrap();
+            return empty.into_raw();
+        }
+    };
+
+    let mut messages: Vec<Vec<u8>> = vec![];
+
+    while let Ok(Some(event)) = port.read() {
+        messages.push(vec![
+            event.message.status,
+            event.message.data1,
+            event.message.data2,
+        ]);
+    }
+
+    let json_str = serde_json::to_string(&messages).unwrap();
+    let c_str = CString::new(json_str).unwrap();
+    c_str.into_raw()
+}
+
+#[deno_bindgen]
+pub fn midi_close_input(device_id: i32) {
+    let mut state = MIDI_STATE.lock().unwrap();
+    if let Some(s) = state.as_mut() {
+        s.input_ports.remove(&device_id);
+    }
 }

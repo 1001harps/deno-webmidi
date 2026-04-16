@@ -62,4 +62,30 @@ if [[ "$FAILURES" -gt 0 ]]; then
 fi
 
 echo ""
-echo "ALL CHECKS PASSED"
+echo "ALL SEND CHECKS PASSED"
+
+# ── Test 2: Receive (our library listens, Swift sends) ──
+
+echo ""
+echo "==> Compiling MIDI sender..."
+swiftc "$SCRIPT_DIR/midi_sender.swift" -o /tmp/midi_sender
+
+echo "==> Starting receive test (our library listening)..."
+MIDI_BINARY_PATH="$BINARY_PATH" MIDI_IAC_NAME="$IAC_NAME" \
+  deno run --allow-ffi --allow-env --allow-read --allow-net "$SCRIPT_DIR/receive_test.ts" &
+RECEIVER_PID=$!
+sleep 2
+
+echo "==> Sending MIDI from Swift..."
+/tmp/midi_sender "$LISTENER_NAME"
+
+wait "$RECEIVER_PID"
+RECEIVE_EXIT=$?
+
+if [[ "$RECEIVE_EXIT" -ne 0 ]]; then
+  echo "FAILED: Receive test failed"
+  exit 1
+fi
+
+echo ""
+echo "ALL INTEGRATION TESTS PASSED"

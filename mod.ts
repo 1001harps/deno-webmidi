@@ -1,8 +1,11 @@
 /// <reference types="npm:@types/webmidi@2.1.0" />
 import {
   load,
+  midi_close_input,
   midi_devices,
   midi_init,
+  midi_open_input,
+  midi_read_messages,
   midi_send_message,
 } from "./bindings/midi/mod.ts";
 import { loadBinary } from "./bindings/midi/load_binary.ts";
@@ -16,6 +19,20 @@ type MidiDevices = {
   inputs: Array<MidiDevice>;
   outputs: Array<MidiDevice>;
 };
+
+function parseMessages(ptr: Deno.PointerObject | null): number[][] {
+  if (!ptr) return [];
+  const view = new Deno.UnsafePointerView(ptr);
+  return JSON.parse(view.getCString()) as number[][];
+}
+
+class MIDIMessageEvent extends Event implements WebMidi.MIDIMessageEvent {
+  readonly data: Uint8Array;
+  constructor(type: string, init: { data: Uint8Array }) {
+    super(type);
+    this.data = init.data;
+  }
+}
 
 function parseMidiDevices(ptr: Deno.PointerObject | null): MidiDevices {
   if (!ptr) {
@@ -35,10 +52,47 @@ export class MIDIInput implements WebMidi.MIDIInput {
   state: WebMidi.MIDIPortDeviceState = "disconnected";
   connection: WebMidi.MIDIPortConnectionState = "closed";
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
-  onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
+
+  private _onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
+  private _pollInterval: number | null = null;
 
   constructor(id: string) {
     this.id = id;
+  }
+
+  get onmidimessage(): ((e: WebMidi.MIDIMessageEvent) => void) | null {
+    return this._onmidimessage;
+  }
+
+  set onmidimessage(handler: ((e: WebMidi.MIDIMessageEvent) => void) | null) {
+    // Stop existing polling
+    if (this._pollInterval !== null) {
+      clearInterval(this._pollInterval);
+      this._pollInterval = null;
+      midi_close_input(parseInt(this.id));
+      this.connection = "closed";
+    }
+
+    this._onmidimessage = handler;
+
+    if (handler) {
+      const deviceId = parseInt(this.id);
+      const result = midi_open_input(deviceId);
+      if (result < 0) {
+        throw new Error(`Failed to open input device ${this.id}`);
+      }
+      this.connection = "open";
+
+      this._pollInterval = setInterval(() => {
+        const messages = parseMessages(midi_read_messages(deviceId));
+        for (const msg of messages) {
+          const event = new MIDIMessageEvent("midimessage", {
+            data: new Uint8Array(msg),
+          });
+          handler(event);
+        }
+      }, 5);
+    }
   }
 
   addEventListener(type: unknown, listener: unknown, options?: unknown): void {

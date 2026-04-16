@@ -24,6 +24,21 @@ export function load(path: string) {
       result: "void",
       nonblocking: false,
     },
+    midi_open_input: {
+      parameters: ["i32"],
+      result: "i32",
+      nonblocking: false,
+    },
+    midi_read_messages: {
+      parameters: ["i32"],
+      result: "pointer",
+      nonblocking: false,
+    },
+    midi_close_input: {
+      parameters: ["i32"],
+      result: "void",
+      nonblocking: false,
+    },
   });
 
   symbols = symbols_;
@@ -45,4 +60,18 @@ export function midi_send_message(
   arg3: number,
 ): void {
   return symbols.midi_send_message(device_id, arg0, arg1, arg2, arg3);
+}
+
+export function midi_open_input(device_id: number): number {
+  return symbols.midi_open_input(device_id);
+}
+
+export function midi_read_messages(
+  device_id: number,
+): Deno.PointerObject | null {
+  return symbols.midi_read_messages(device_id);
+}
+
+export function midi_close_input(device_id: number): void {
+  return symbols.midi_close_input(device_id);
 }

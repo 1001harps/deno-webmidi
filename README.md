@@ -46,7 +46,7 @@ navigator.requestMIDIAccess().then((midiAccess) => {
 - ✅ `MIDIAccess.inputs`
 - ✅ `MIDIAccess.outputs`
 - ✅ `MIDIOutput.send()`
-- ❌ `MIDIInput.onmidimessage`
+- ✅ `MIDIInput.onmidimessage`
 - ❌ `MIDIPort.open()`
 - ❌ `MIDIPort.close()`
 - ❌ `MIDIPort.state`

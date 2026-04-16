@@ -1,1 +1,32 @@
-{"name":"midi","littleEndian":true,"symbols":{"midi_init":{"parameters":[],"result":"void","nonBlocking":false},"midi_note_off":{"parameters":["u8","u8"],"result":"void","nonBlocking":false},"midi_note_on":{"parameters":["u8","u8"],"result":"void","nonBlocking":false},"midi_devices":{"parameters":[],"result":{"structenum":{"ident":"MidiDevices"}},"nonBlocking":false}},"typeDefs":{"MidiDevices":{"outputs":"Vec","inputs":"Vec"},"Midi":{"context":"pm"},"MidiDevice":{"id":"String","name":"String"}},"tsTypes":{"Midi":"export type Midi = {\n    context: PortMidi;\n};","MidiDevices":"export type MidiDevices = {\n    inputs: Array<MidiDevice>;\n  outputs: Array<MidiDevice>;\n};","MidiDevice":"export type MidiDevice = {\n    id: string;\n  name: string;\n};"}}
+{
+  "name": "midi",
+  "littleEndian": true,
+  "symbols": {
+    "midi_init": { "parameters": [], "result": "void", "nonBlocking": false },
+    "midi_note_off": {
+      "parameters": ["u8", "u8"],
+      "result": "void",
+      "nonBlocking": false
+    },
+    "midi_note_on": {
+      "parameters": ["u8", "u8"],
+      "result": "void",
+      "nonBlocking": false
+    },
+    "midi_devices": {
+      "parameters": [],
+      "result": { "structenum": { "ident": "MidiDevices" } },
+      "nonBlocking": false
+    }
+  },
+  "typeDefs": {
+    "MidiDevices": { "outputs": "Vec", "inputs": "Vec" },
+    "Midi": { "context": "pm" },
+    "MidiDevice": { "id": "String", "name": "String" }
+  },
+  "tsTypes": {
+    "Midi": "export type Midi = {\n    context: PortMidi;\n};",
+    "MidiDevices": "export type MidiDevices = {\n    inputs: Array<MidiDevice>;\n  outputs: Array<MidiDevice>;\n};",
+    "MidiDevice": "export type MidiDevice = {\n    id: string;\n  name: string;\n};"
+  }
+}

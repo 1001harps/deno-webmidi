@@ -11,35 +11,35 @@ export function load(path: string) {
   const { symbols: symbols_ } = dlopen(path, {
     midi_init: {
       parameters: [],
-      result: 'void',
-      nonblocking: false
+      result: "void",
+      nonblocking: false,
     },
     midi_devices: {
       parameters: [],
-      result: 'pointer',
-      nonblocking: false
+      result: "pointer",
+      nonblocking: false,
     },
     midi_send_message: {
       parameters: [
-        'u8',
-        'u8',
-        'u8',
-        'u8',
+        "u8",
+        "u8",
+        "u8",
+        "u8",
       ],
-      result: 'void',
-      nonblocking: false
+      result: "void",
+      nonblocking: false,
     },
   });
-  
+
   symbols = symbols_;
 }
 
 export function midi_init(): void {
-  return symbols.midi_init()
+  return symbols.midi_init();
 }
 
 export function midi_devices(): Deno.PointerObject | null {
-  return symbols.midi_devices()
+  return symbols.midi_devices();
 }
 
 export function midi_send_message(
@@ -53,6 +53,5 @@ export function midi_send_message(
     arg1,
     arg2,
     arg3,
-  )
+  );
 }
-

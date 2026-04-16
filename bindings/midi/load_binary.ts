@@ -24,9 +24,12 @@ export async function loadBinary(): Promise<string> {
     // not cached — download
   }
 
-  const url = `https://github.com/${REPO}/releases/download/v${VERSION}/${filename}`;
+  const url =
+    `https://github.com/${REPO}/releases/download/v${VERSION}/${filename}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to download binary: ${res.status} ${url}`);
+  if (!res.ok) {
+    throw new Error(`Failed to download binary: ${res.status} ${url}`);
+  }
 
   await Deno.mkdir(cacheDir, { recursive: true });
   await Deno.writeFile(cachedPath, new Uint8Array(await res.arrayBuffer()));

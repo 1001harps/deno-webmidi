@@ -16,7 +16,8 @@ devices through the PortMIDI library.
 import "jsr:@9h/webmidi";
 ```
 
-The native binary for your platform is downloaded and cached automatically on first use.
+The native binary for your platform is downloaded and cached automatically on
+first use.
 
 ## Usage
 
@@ -24,18 +25,18 @@ The native binary for your platform is downloaded and cached automatically on fi
 import "jsr:@9h/webmidi";
 
 navigator.requestMIDIAccess().then((midiAccess) => {
-    // Get the first available output
-    const output = Array.from(midiAccess.outputs.values())[0];
-    if (!output) {
-        console.log("No MIDI outputs found");
-        return;
-    }
+  // Get the first available output
+  const output = Array.from(midiAccess.outputs.values())[0];
+  if (!output) {
+    console.log("No MIDI outputs found");
+    return;
+  }
 
-    // Play middle C for 1 second
-    output.send([0x90, 60, 100]); // Note on
-    setTimeout(() => {
-        output.send([0x80, 60, 0]); // Note off
-    }, 1000);
+  // Play middle C for 1 second
+  output.send([0x90, 60, 100]); // Note on
+  setTimeout(() => {
+    output.send([0x80, 60, 0]); // Note off
+  }, 1000);
 });
 ```
 
@@ -79,7 +80,8 @@ deno task bindings
 deno task test
 ```
 
-To use a locally built binary instead of downloading from releases, set `MIDI_BINARY_PATH`:
+To use a locally built binary instead of downloading from releases, set
+`MIDI_BINARY_PATH`:
 
 ```bash
 MIDI_BINARY_PATH=/path/to/libmidi.dylib deno run --allow-ffi --allow-env --allow-net mod.ts

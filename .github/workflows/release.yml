@@ -22,7 +22,6 @@ jobs:
             name: libmidi-x86_64-unknown-linux-gnu.so
             lib: libmidi.so
 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

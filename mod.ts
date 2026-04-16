@@ -1,8 +1,8 @@
 /// <reference types="npm:@types/webmidi@2.1.0" />
 import {
   load,
-  midi_init,
   midi_devices,
+  midi_init,
   midi_send_message,
 } from "./bindings/midi/mod.ts";
 import { loadBinary } from "./bindings/midi/load_binary.ts";
@@ -48,7 +48,7 @@ export class MIDIInput implements WebMidi.MIDIInput {
   removeEventListener(
     type: unknown,
     listener: unknown,
-    options?: unknown
+    options?: unknown,
   ): void {
     throw new Error("Method not implemented.");
   }
@@ -84,7 +84,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
   removeEventListener(
     type: unknown,
     listener: unknown,
-    options?: unknown
+    options?: unknown,
   ): void {
     throw new Error("Method not implemented.");
   }
@@ -110,7 +110,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       bytes[0],
       bytes[1],
       bytes[2],
-      bytes.length > 3 ? bytes[3] : 0
+      bytes.length > 3 ? bytes[3] : 0,
     );
   }
   clear(): void {
@@ -154,7 +154,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
   addEventListener(
     _type: "statechange" | string,
     _listener: unknown,
-    _options?: unknown
+    _options?: unknown,
   ): void {
     throw new Error("Method not implemented.");
   }
@@ -162,7 +162,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
   removeEventListener(
     _type: "statechange" | string,
     _listener: unknown,
-    _options?: unknown
+    _options?: unknown,
   ): void {
     throw new Error("Method not implemented.");
   }
@@ -175,7 +175,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
 let loaded = false;
 
 const requestMIDIAccess = async (
-  options?: WebMidi.MIDIOptions
+  options?: WebMidi.MIDIOptions,
 ): Promise<WebMidi.MIDIAccess> => {
   if (!loaded) {
     const binaryPath = await loadBinary();

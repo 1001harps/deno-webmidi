@@ -5,11 +5,12 @@
   "tasks": {
     "build:bindings": "cd bindings/midi && cargo build --release",
     "bindings": "cd bindings/midi && deno_bindgen --release --lazy-init -o mod.ts",
-    "test": "MIDI_BINARY_PATH=$(pwd)/bindings/midi/target/release/libmidi.dylib deno run --allow-ffi --allow-env --allow-read midi_test.ts"
+    "test": "MIDI_BINARY_PATH=$(pwd)/bindings/midi/target/release/libmidi.dylib deno run --allow-ffi --allow-env --allow-read midi_test.ts",
+    "test:integration": "./test/integration/run.sh"
   },
   "license": "MIT",
   "publish": {
-    "exclude": ["midi_test.ts"]
+    "exclude": ["midi_test.ts", "test/"]
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",

@@ -315,7 +315,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
     this._fireStateChange();
   }
   clear(): void {
-    throw new Error("Method not implemented.");
+    // No-op: messages are sent immediately, no output buffer to clear.
   }
 }
 

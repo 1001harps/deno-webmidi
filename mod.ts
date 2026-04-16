@@ -66,6 +66,8 @@ export class MIDIInput implements WebMidi.MIDIInput {
 
   private _onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
   private _pollInterval: number | null = null;
+  private _listeners: Map<string, Set<EventListenerOrEventListenerObject>> =
+    new Map();
 
   constructor(id: string) {
     this.id = id;
@@ -107,9 +109,25 @@ export class MIDIInput implements WebMidi.MIDIInput {
   }
 
   private _fireStateChange(): void {
-    const event = new MIDIConnectionEvent("statechange", { port: this });
+    const event = new MIDIConnectionEvent("statechange", {
+      port: this as unknown as WebMidi.MIDIPort,
+    });
     this.onstatechange?.(event);
-    this._access?.onstatechange?.(event);
+    this._dispatchToListeners("statechange", event);
+    this._access?._dispatchStateChange(event);
+  }
+
+  private _dispatchToListeners(type: string, event: Event): void {
+    const listeners = this._listeners.get(type);
+    if (listeners) {
+      for (const listener of listeners) {
+        if (typeof listener === "function") {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    }
   }
 
   private _startPolling(): void {
@@ -122,6 +140,7 @@ export class MIDIInput implements WebMidi.MIDIInput {
           data: new Uint8Array(msg),
         });
         this._onmidimessage?.(event);
+        this._dispatchToListeners("midimessage", event);
       }
     }, 5);
   }
@@ -133,34 +152,50 @@ export class MIDIInput implements WebMidi.MIDIInput {
     }
   }
 
-  addEventListener(type: unknown, listener: unknown, options?: unknown): void {
-    throw new Error("Method not implemented.");
+  // @ts-ignore: implementation satisfies all overloads at runtime
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | AddEventListenerOptions,
+  ): void {
+    if (!this._listeners.has(type)) {
+      this._listeners.set(type, new Set());
+    }
+    this._listeners.get(type)!.add(listener);
   }
 
+  // @ts-ignore: implementation satisfies all overloads at runtime
   removeEventListener(
-    type: unknown,
-    listener: unknown,
-    options?: unknown,
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | EventListenerOptions,
   ): void {
-    throw new Error("Method not implemented.");
+    this._listeners.get(type)?.delete(listener);
   }
 
   open(): Promise<WebMidi.MIDIPort> {
     if (this.connection !== "open") {
       this._openPort();
     }
-    return Promise.resolve(this);
+    return Promise.resolve(this as unknown as WebMidi.MIDIPort);
   }
 
   close(): Promise<WebMidi.MIDIPort> {
     if (this.connection === "open") {
       this._closePort();
     }
-    return Promise.resolve(this);
+    return Promise.resolve(this as unknown as WebMidi.MIDIPort);
   }
 
   dispatchEvent(event: Event): boolean {
-    throw new Error("Method not implemented.");
+    const type = event.type;
+    if (type === "midimessage") {
+      this._onmidimessage?.(event as WebMidi.MIDIMessageEvent);
+    } else if (type === "statechange") {
+      this.onstatechange?.(event as WebMidi.MIDIConnectionEvent);
+    }
+    this._dispatchToListeners(type, event);
+    return true;
   }
 }
 
@@ -175,19 +210,30 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
   onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
   _access: MIDIAccess | null = null;
+  private _listeners: Map<string, Set<EventListenerOrEventListenerObject>> =
+    new Map();
 
   constructor(id: string) {
     this.id = id;
   }
-  addEventListener(type: unknown, listener: unknown, options?: unknown): void {
-    throw new Error("Method not implemented.");
-  }
-  removeEventListener(
-    type: unknown,
-    listener: unknown,
-    options?: unknown,
+  // @ts-ignore: implementation satisfies all overloads at runtime
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | AddEventListenerOptions,
   ): void {
-    throw new Error("Method not implemented.");
+    if (!this._listeners.has(type)) {
+      this._listeners.set(type, new Set());
+    }
+    this._listeners.get(type)!.add(listener);
+  }
+  // @ts-ignore: implementation satisfies all overloads at runtime
+  removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | EventListenerOptions,
+  ): void {
+    this._listeners.get(type)?.delete(listener);
   }
   open(): Promise<WebMidi.MIDIPort> {
     if (this.connection !== "open") {
@@ -199,7 +245,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       this.connection = "open";
       this._fireStateChange();
     }
-    return Promise.resolve(this);
+    return Promise.resolve(this as unknown as WebMidi.MIDIPort);
   }
   close(): Promise<WebMidi.MIDIPort> {
     if (this.connection === "open") {
@@ -207,15 +253,35 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       this.connection = "closed";
       this._fireStateChange();
     }
-    return Promise.resolve(this);
+    return Promise.resolve(this as unknown as WebMidi.MIDIPort);
   }
   private _fireStateChange(): void {
-    const event = new MIDIConnectionEvent("statechange", { port: this });
+    const event = new MIDIConnectionEvent("statechange", {
+      port: this as unknown as WebMidi.MIDIPort,
+    });
     this.onstatechange?.(event);
-    this._access?.onstatechange?.(event);
+    this._dispatchToListeners("statechange", event);
+    this._access?._dispatchStateChange(event);
+  }
+  private _dispatchToListeners(type: string, event: Event): void {
+    const listeners = this._listeners.get(type);
+    if (listeners) {
+      for (const listener of listeners) {
+        if (typeof listener === "function") {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    }
   }
   dispatchEvent(event: Event): boolean {
-    throw new Error("Method not implemented.");
+    const type = event.type;
+    if (type === "statechange") {
+      this.onstatechange?.(event as WebMidi.MIDIConnectionEvent);
+    }
+    this._dispatchToListeners(type, event);
+    return true;
   }
   send(data: number[] | Uint8Array, _timestamp?: number): void {
     // Implicitly open if not already open (per Web MIDI spec)
@@ -258,6 +324,8 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
   outputs: WebMidi.MIDIOutputMap;
   sysexEnabled: boolean = false;
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
+  private _listeners: Map<string, Set<EventListenerOrEventListenerObject>> =
+    new Map();
 
   constructor(_options?: WebMidi.MIDIOptions) {
     // Initialize MIDI
@@ -273,7 +341,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
       const input = new MIDIInput(device.id);
       input.name = device.name;
       input._access = this;
-      inputs.set(device.id, input);
+      inputs.set(device.id, input as unknown as WebMidi.MIDIInput);
     });
 
     // Add output devices
@@ -281,31 +349,63 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
       const output = new MIDIOutput(device.id);
       output.name = device.name;
       output._access = this;
-      outputs.set(device.id, output);
+      outputs.set(device.id, output as unknown as WebMidi.MIDIOutput);
     });
 
     this.inputs = inputs;
     this.outputs = outputs;
   }
 
+  _dispatchStateChange(event: MIDIConnectionEvent): void {
+    this.onstatechange?.(event);
+    const listeners = this._listeners.get("statechange");
+    if (listeners) {
+      for (const listener of listeners) {
+        if (typeof listener === "function") {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    }
+  }
+
+  // @ts-ignore: implementation satisfies all overloads at runtime
   addEventListener(
-    _type: "statechange" | string,
-    _listener: unknown,
-    _options?: unknown,
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | AddEventListenerOptions,
   ): void {
-    throw new Error("Method not implemented.");
+    if (!this._listeners.has(type)) {
+      this._listeners.set(type, new Set());
+    }
+    this._listeners.get(type)!.add(listener);
   }
 
+  // @ts-ignore: implementation satisfies all overloads at runtime
   removeEventListener(
-    _type: "statechange" | string,
-    _listener: unknown,
-    _options?: unknown,
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    _options?: boolean | EventListenerOptions,
   ): void {
-    throw new Error("Method not implemented.");
+    this._listeners.get(type)?.delete(listener);
   }
 
-  dispatchEvent(_event: Event): boolean {
-    throw new Error("Method not implemented.");
+  dispatchEvent(event: Event): boolean {
+    if (event.type === "statechange") {
+      this.onstatechange?.(event as WebMidi.MIDIConnectionEvent);
+    }
+    const listeners = this._listeners.get(event.type);
+    if (listeners) {
+      for (const listener of listeners) {
+        if (typeof listener === "function") {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    }
+    return true;
   }
 }
 
@@ -319,7 +419,7 @@ const requestMIDIAccess = async (
     load(binaryPath);
     loaded = true;
   }
-  return new MIDIAccess(options);
+  return new MIDIAccess(options) as unknown as WebMidi.MIDIAccess;
 };
 
 navigator.requestMIDIAccess = requestMIDIAccess;

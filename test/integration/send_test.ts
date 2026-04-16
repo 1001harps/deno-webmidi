@@ -99,4 +99,41 @@ assert(
 // Give listener time to capture
 await new Promise((r) => setTimeout(r, 500));
 
+// Test addEventListener / removeEventListener
+const adlChanges: string[] = [];
+const listener = (e: Event) => {
+  adlChanges.push((e as WebMidi.MIDIConnectionEvent).port.connection);
+};
+output.addEventListener("statechange", listener);
+await output.open();
+assert(adlChanges.length === 1, `addEventListener listener fired on open`);
+assert(adlChanges[0] === "open", `addEventListener listener got "open"`);
+
+// Also test access-level addEventListener
+const accessAdlChanges: string[] = [];
+const accessListener = (e: Event) => {
+  accessAdlChanges.push(
+    `${(e as WebMidi.MIDIConnectionEvent).port.connection}`,
+  );
+};
+midiAccess.addEventListener("statechange", accessListener);
+await output.close();
+assert(adlChanges.length === 2, `addEventListener listener fired on close`);
+assert(adlChanges[1] === "closed", `addEventListener listener got "closed"`);
+assert(accessAdlChanges.length === 1, `access addEventListener listener fired`);
+
+// Test removeEventListener
+output.removeEventListener("statechange", listener);
+midiAccess.removeEventListener("statechange", accessListener);
+await output.open();
+assert(
+  adlChanges.length === 2,
+  `removeEventListener: port listener not called after removal`,
+);
+assert(
+  accessAdlChanges.length === 1,
+  `removeEventListener: access listener not called after removal`,
+);
+await output.close();
+
 console.log("Send test complete.");

@@ -56,7 +56,7 @@ navigator.requestMIDIAccess().then((midiAccess) => {
 - ❌ `MIDIOutput.clear()`
 - ❌ SysEx support
 - ❌ High-precision timing
-- ❌ Event listeners (`addEventListener`/`removeEventListener`)
+- ✅ Event listeners (`addEventListener`/`removeEventListener`)
 - ❌ Device hotplug detection
 
 ## Development

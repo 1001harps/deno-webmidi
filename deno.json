@@ -1,6 +1,6 @@
 {
   "name": "@9h/webmidi",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Web MIDI API implementation for Deno, backed by a native PortMidi binding.",
   "exports": "./mod.ts",
   "tasks": {

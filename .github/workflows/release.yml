@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -58,7 +58,7 @@ jobs:
           cp bindings/midi/target/${{ matrix.target }}/release/${{ matrix.lib }} artifacts/${{ matrix.name }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ${{ matrix.target }}-binary
           path: artifacts/${{ matrix.name }}
@@ -93,7 +93,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Publish to JSR
         run: npx jsr publish --allow-slow-types

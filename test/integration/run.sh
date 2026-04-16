@@ -87,5 +87,57 @@ if [[ "$RECEIVE_EXIT" -ne 0 ]]; then
   exit 1
 fi
 
+# ── Test 3: SysEx Send ──
+
+echo ""
+echo "==> Compiling MIDI SysEx sender..."
+swiftc "$SCRIPT_DIR/midi_sysex_sender.swift" -o /tmp/midi_sysex_sender
+
+SYSEX_CAPTURE=$(mktemp)
+/tmp/midi_listener "$LISTENER_NAME" > "$SYSEX_CAPTURE" &
+SYSEX_LISTENER_PID=$!
+sleep 1
+
+echo "==> Running SysEx send test..."
+MIDI_BINARY_PATH="$BINARY_PATH" MIDI_IAC_NAME="$IAC_NAME" \
+  deno run --allow-ffi --allow-env --allow-read --allow-net "$SCRIPT_DIR/sysex_send_test.ts"
+
+sleep 1
+kill "$SYSEX_LISTENER_PID" 2>/dev/null || true
+wait "$SYSEX_LISTENER_PID" 2>/dev/null || true
+
+echo "==> SysEx captured output:"
+cat "$SYSEX_CAPTURE"
+echo ""
+
+if grep -q "f0 7e 7f 09 01 f7" "$SYSEX_CAPTURE"; then
+  echo "PASS: SysEx send (GM reset received by listener)"
+else
+  echo "FAIL: SysEx bytes not found in capture"
+  rm -f "$SYSEX_CAPTURE"
+  exit 1
+fi
+rm -f "$SYSEX_CAPTURE"
+
+# ── Test 4: SysEx Receive ──
+
+echo ""
+echo "==> Starting SysEx receive test (our library listening)..."
+MIDI_BINARY_PATH="$BINARY_PATH" MIDI_IAC_NAME="$IAC_NAME" \
+  deno run --allow-ffi --allow-env --allow-read --allow-net "$SCRIPT_DIR/sysex_receive_test.ts" &
+SYSEX_RECEIVER_PID=$!
+sleep 2
+
+echo "==> Sending SysEx from Swift..."
+/tmp/midi_sysex_sender "$LISTENER_NAME"
+
+wait "$SYSEX_RECEIVER_PID"
+SYSEX_RECEIVE_EXIT=$?
+
+if [[ "$SYSEX_RECEIVE_EXIT" -ne 0 ]]; then
+  echo "FAILED: SysEx receive test failed"
+  exit 1
+fi
+
 echo ""
 echo "ALL INTEGRATION TESTS PASSED"

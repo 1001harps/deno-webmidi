@@ -12,6 +12,7 @@ struct MidiState {
     // static Mutex. The context is never dropped while ports exist.
     input_ports: HashMap<i32, pm::InputPort<'static>>,
     output_ports: HashMap<i32, pm::OutputPort<'static>>,
+    sysex_buffers: HashMap<i32, Vec<u8>>,
 }
 
 static MIDI_STATE: Mutex<Option<MidiState>> = Mutex::new(None);
@@ -38,6 +39,7 @@ pub fn midi_init() {
             context: pm::PortMidi::new().unwrap(),
             input_ports: HashMap::new(),
             output_ports: HashMap::new(),
+            sysex_buffers: HashMap::new(),
         });
     }
 }
@@ -121,6 +123,23 @@ pub fn midi_send_message(device_id: i32, status: u8, data1: u8, data2: u8, data3
 }
 
 #[deno_bindgen]
+pub fn midi_send_sysex(device_id: i32, data: &[u8]) -> i32 {
+    if data.first() != Some(&0xF0) || data.last() != Some(&0xF7) {
+        return -2;
+    }
+    let mut state = MIDI_STATE.lock().unwrap();
+    let s = state.as_mut().expect("MIDI not initialized");
+    let port = match s.output_ports.get_mut(&device_id) {
+        Some(p) => p,
+        None => return -3,
+    };
+    match port.write_sysex(0, data) {
+        Ok(_) => 0,
+        Err(_) => -4,
+    }
+}
+
+#[deno_bindgen]
 pub fn midi_open_input(device_id: i32) -> i32 {
     let mut state = MIDI_STATE.lock().unwrap();
     let s = state.as_mut().expect("MIDI not initialized");
@@ -158,14 +177,36 @@ pub fn midi_read_messages(device_id: i32) -> *const c_char {
         }
     };
 
+    // Collect raw event bytes first so the port borrow ends before we touch sysex_buffers.
+    let raw_events: Vec<(u8, u8, u8, u8)> = {
+        let mut events = vec![];
+        while let Ok(Some(event)) = port.read() {
+            let m = event.message;
+            events.push((m.status, m.data1, m.data2, m.data3));
+        }
+        events
+    };
+
+    let buf = s.sysex_buffers.entry(device_id).or_default();
     let mut messages: Vec<Vec<u8>> = vec![];
 
-    while let Ok(Some(event)) = port.read() {
-        messages.push(vec![
-            event.message.status,
-            event.message.data1,
-            event.message.data2,
-        ]);
+    for (status, data1, data2, data3) in raw_events {
+        if status == 0xF0 {
+            buf.clear();
+        }
+        if !buf.is_empty() || status == 0xF0 {
+            // SysEx accumulation: PortMidi packs bytes into all 4 fields
+            for byte in [status, data1, data2, data3] {
+                buf.push(byte);
+                if byte == 0xF7 {
+                    messages.push(buf.clone());
+                    buf.clear();
+                    break;
+                }
+            }
+        } else {
+            messages.push(vec![status, data1, data2]);
+        }
     }
 
     let json_str = serde_json::to_string(&messages).unwrap();

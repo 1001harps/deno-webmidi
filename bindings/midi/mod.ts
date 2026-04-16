@@ -5,91 +5,152 @@
 
 let symbols: any;
 
-export function load(path: string) {
+export function load(path: string = "/Users/ae/src/1001harps/deno-webmidi/bindings/midi/target/release/libmidi.dylib") {
   const { dlopen } = Deno;
 
   const { symbols: symbols_ } = dlopen(path, {
     midi_init: {
       parameters: [],
-      result: "void",
-      nonblocking: false,
+      result: 'void',
+      nonblocking: false
     },
     midi_devices: {
       parameters: [],
-      result: "pointer",
-      nonblocking: false,
-    },
-    midi_send_message: {
-      parameters: ["i32", "u8", "u8", "u8", "u8"],
-      result: "void",
-      nonblocking: false,
-    },
-    midi_open_input: {
-      parameters: ["i32"],
-      result: "i32",
-      nonblocking: false,
+      result: 'pointer',
+      nonblocking: false
     },
     midi_open_output: {
-      parameters: ["i32"],
-      result: "i32",
-      nonblocking: false,
+      parameters: [
+        'i32',
+      ],
+      result: 'i32',
+      nonblocking: false
     },
     midi_close_output: {
-      parameters: ["i32"],
-      result: "void",
-      nonblocking: false,
+      parameters: [
+        'i32',
+      ],
+      result: 'void',
+      nonblocking: false
+    },
+    midi_send_message: {
+      parameters: [
+        'i32',
+        'u8',
+        'u8',
+        'u8',
+        'u8',
+      ],
+      result: 'void',
+      nonblocking: false
+    },
+    midi_send_sysex: {
+      parameters: [
+        'i32',
+        'buffer',
+        'usize',
+      ],
+      result: 'i32',
+      nonblocking: false
+    },
+    midi_open_input: {
+      parameters: [
+        'i32',
+      ],
+      result: 'i32',
+      nonblocking: false
     },
     midi_read_messages: {
-      parameters: ["i32"],
-      result: "pointer",
-      nonblocking: false,
+      parameters: [
+        'i32',
+      ],
+      result: 'pointer',
+      nonblocking: false
     },
     midi_close_input: {
-      parameters: ["i32"],
-      result: "void",
-      nonblocking: false,
+      parameters: [
+        'i32',
+      ],
+      result: 'void',
+      nonblocking: false
     },
   });
-
+  
   symbols = symbols_;
 }
 
 export function midi_init(): void {
-  return symbols.midi_init();
+  return symbols.midi_init()
 }
 
 export function midi_devices(): Deno.PointerObject | null {
-  return symbols.midi_devices();
+  return symbols.midi_devices()
+}
+
+export function midi_open_output(
+  arg0: number,
+): number {
+  return symbols.midi_open_output(
+    arg0,
+  )
+}
+
+export function midi_close_output(
+  arg0: number,
+): void {
+  return symbols.midi_close_output(
+    arg0,
+  )
 }
 
 export function midi_send_message(
-  device_id: number,
   arg0: number,
   arg1: number,
   arg2: number,
   arg3: number,
+  arg4: number,
 ): void {
-  return symbols.midi_send_message(device_id, arg0, arg1, arg2, arg3);
+  return symbols.midi_send_message(
+    arg0,
+    arg1,
+    arg2,
+    arg3,
+    arg4,
+  )
 }
 
-export function midi_open_input(device_id: number): number {
-  return symbols.midi_open_input(device_id);
+export function midi_send_sysex(
+  arg0: number,
+  arg1: Uint8Array,
+): number {
+  return symbols.midi_send_sysex(
+    arg0,
+    arg1,
+    arg1.byteLength,
+  )
+}
+
+export function midi_open_input(
+  arg0: number,
+): number {
+  return symbols.midi_open_input(
+    arg0,
+  )
 }
 
 export function midi_read_messages(
-  device_id: number,
+  arg0: number,
 ): Deno.PointerObject | null {
-  return symbols.midi_read_messages(device_id);
+  return symbols.midi_read_messages(
+    arg0,
+  )
 }
 
-export function midi_close_input(device_id: number): void {
-  return symbols.midi_close_input(device_id);
+export function midi_close_input(
+  arg0: number,
+): void {
+  return symbols.midi_close_input(
+    arg0,
+  )
 }
 
-export function midi_open_output(device_id: number): number {
-  return symbols.midi_open_output(device_id);
-}
-
-export function midi_close_output(device_id: number): void {
-  return symbols.midi_close_output(device_id);
-}

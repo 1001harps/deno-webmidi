@@ -9,6 +9,7 @@ import {
   midi_open_output,
   midi_read_messages,
   midi_send_message,
+  midi_send_sysex,
 } from "./bindings/midi/mod.ts";
 import { loadBinary } from "./bindings/midi/load_binary.ts";
 
@@ -136,6 +137,7 @@ export class MIDIInput implements WebMidi.MIDIInput {
     this._pollInterval = setInterval(() => {
       const messages = parseMessages(midi_read_messages(deviceId));
       for (const msg of messages) {
+        if (msg[0] === 0xF0 && !this._access?.sysexEnabled) continue;
         const event = new MIDIMessageEvent("midimessage", {
           data: new Uint8Array(msg),
         });
@@ -289,14 +291,26 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       this._openAndFireStateChange();
     }
 
-    // Convert Uint8Array to number array if needed
     const bytes = Array.isArray(data) ? data : Array.from(data);
 
-    if (bytes.length < 3) {
-      throw new Error("MIDI message must be at least 3 bytes long");
+    if (bytes[0] === 0xF0) {
+      if (!this._access?.sysexEnabled) {
+        throw new DOMException("SysEx not enabled", "InvalidAccessError");
+      }
+      if (bytes[bytes.length - 1] !== 0xF7) {
+        throw new TypeError("SysEx message must end with 0xF7");
+      }
+      const result = midi_send_sysex(parseInt(this.id), new Uint8Array(bytes));
+      if (result < 0) {
+        throw new Error(`Failed to send SysEx: error ${result}`);
+      }
+      return;
     }
 
-    // Send to the specific device by ID
+    if (bytes.length < 3) {
+      throw new TypeError("MIDI message must be at least 3 bytes long");
+    }
+
     midi_send_message(
       parseInt(this.id),
       bytes[0],
@@ -328,6 +342,8 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
     new Map();
 
   constructor(_options?: WebMidi.MIDIOptions) {
+    this.sysexEnabled = _options?.sysex === true;
+
     // Initialize MIDI
     midi_init();
 

@@ -51,8 +51,8 @@ navigator.requestMIDIAccess().then((midiAccess) => {
 - ✅ `MIDIPort.close()`
 - ✅ `MIDIPort.state`
 - ✅ `MIDIPort.connection`
-- ❌ `MIDIPort.onstatechange`
-- ❌ `MIDIAccess.onstatechange`
+- ✅ `MIDIPort.onstatechange`
+- ✅ `MIDIAccess.onstatechange`
 - ❌ `MIDIOutput.clear()`
 - ❌ SysEx support
 - ❌ High-precision timing

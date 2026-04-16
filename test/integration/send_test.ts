@@ -34,9 +34,31 @@ console.log(`Using output: ${output.name}`);
 assert(output.state === "connected", `state is "connected" initially`);
 assert(output.connection === "closed", `connection is "closed" initially`);
 
+// Test onstatechange on port
+const portStateChanges: string[] = [];
+output.onstatechange = (e: WebMidi.MIDIConnectionEvent) => {
+  portStateChanges.push(e.port.connection);
+};
+
+// Test onstatechange on MIDIAccess
+const accessStateChanges: string[] = [];
+midiAccess.onstatechange = (e: WebMidi.MIDIConnectionEvent) => {
+  accessStateChanges.push(`${e.port.type}:${e.port.connection}`);
+};
+
 // Test explicit open
 await output.open();
 assert(output.connection === "open", `connection is "open" after open()`);
+assert(portStateChanges.length === 1, `port onstatechange fired on open`);
+assert(
+  portStateChanges[0] === "open",
+  `port onstatechange event has connection "open"`,
+);
+assert(accessStateChanges.length === 1, `access onstatechange fired on open`);
+assert(
+  accessStateChanges[0] === "output:open",
+  `access onstatechange has "output:open"`,
+);
 
 // Test double open is idempotent
 await output.open();
@@ -56,6 +78,16 @@ output.send([0x80, 60, 0]);
 // Test close
 await output.close();
 assert(output.connection === "closed", `connection is "closed" after close()`);
+assert(portStateChanges.length === 2, `port onstatechange fired on close`);
+assert(
+  portStateChanges[1] === "closed",
+  `port onstatechange event has connection "closed"`,
+);
+assert(accessStateChanges.length === 2, `access onstatechange fired on close`);
+assert(
+  accessStateChanges[1] === "output:closed",
+  `access onstatechange has "output:closed"`,
+);
 
 // Test double close is idempotent
 await output.close();

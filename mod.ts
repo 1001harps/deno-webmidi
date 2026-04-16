@@ -36,6 +36,14 @@ class MIDIMessageEvent extends Event implements WebMidi.MIDIMessageEvent {
   }
 }
 
+class MIDIConnectionEvent extends Event implements WebMidi.MIDIConnectionEvent {
+  readonly port: WebMidi.MIDIPort;
+  constructor(type: string, init: { port: WebMidi.MIDIPort }) {
+    super(type);
+    this.port = init.port;
+  }
+}
+
 function parseMidiDevices(ptr: Deno.PointerObject | null): MidiDevices {
   if (!ptr) {
     return { inputs: [], outputs: [] };
@@ -54,6 +62,7 @@ export class MIDIInput implements WebMidi.MIDIInput {
   state: WebMidi.MIDIPortDeviceState = "connected";
   connection: WebMidi.MIDIPortConnectionState = "closed";
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
+  _access: MIDIAccess | null = null;
 
   private _onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
   private _pollInterval: number | null = null;
@@ -87,12 +96,20 @@ export class MIDIInput implements WebMidi.MIDIInput {
       throw new Error(`Failed to open input device ${this.id}`);
     }
     this.connection = "open";
+    this._fireStateChange();
   }
 
   private _closePort(): void {
     this._stopPolling();
     midi_close_input(parseInt(this.id));
     this.connection = "closed";
+    this._fireStateChange();
+  }
+
+  private _fireStateChange(): void {
+    const event = new MIDIConnectionEvent("statechange", { port: this });
+    this.onstatechange?.(event);
+    this._access?.onstatechange?.(event);
   }
 
   private _startPolling(): void {
@@ -157,6 +174,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
   connection: WebMidi.MIDIPortConnectionState = "closed";
   onstatechange: ((e: WebMidi.MIDIConnectionEvent) => void) | null = null;
   onmidimessage: ((e: WebMidi.MIDIMessageEvent) => void) | null = null;
+  _access: MIDIAccess | null = null;
 
   constructor(id: string) {
     this.id = id;
@@ -179,6 +197,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
         throw new Error(`Failed to open output device ${this.id}`);
       }
       this.connection = "open";
+      this._fireStateChange();
     }
     return Promise.resolve(this);
   }
@@ -186,8 +205,14 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
     if (this.connection === "open") {
       midi_close_output(parseInt(this.id));
       this.connection = "closed";
+      this._fireStateChange();
     }
     return Promise.resolve(this);
+  }
+  private _fireStateChange(): void {
+    const event = new MIDIConnectionEvent("statechange", { port: this });
+    this.onstatechange?.(event);
+    this._access?.onstatechange?.(event);
   }
   dispatchEvent(event: Event): boolean {
     throw new Error("Method not implemented.");
@@ -195,12 +220,7 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
   send(data: number[] | Uint8Array, _timestamp?: number): void {
     // Implicitly open if not already open (per Web MIDI spec)
     if (this.connection !== "open") {
-      const deviceId = parseInt(this.id);
-      const result = midi_open_output(deviceId);
-      if (result < 0) {
-        throw new Error(`Failed to open output device ${this.id}`);
-      }
-      this.connection = "open";
+      this._openAndFireStateChange();
     }
 
     // Convert Uint8Array to number array if needed
@@ -218,6 +238,15 @@ export class MIDIOutput implements WebMidi.MIDIOutput {
       bytes[2],
       bytes.length > 3 ? bytes[3] : 0,
     );
+  }
+  private _openAndFireStateChange(): void {
+    const deviceId = parseInt(this.id);
+    const result = midi_open_output(deviceId);
+    if (result < 0) {
+      throw new Error(`Failed to open output device ${this.id}`);
+    }
+    this.connection = "open";
+    this._fireStateChange();
   }
   clear(): void {
     throw new Error("Method not implemented.");
@@ -243,6 +272,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
     devices.inputs.forEach((device) => {
       const input = new MIDIInput(device.id);
       input.name = device.name;
+      input._access = this;
       inputs.set(device.id, input);
     });
 
@@ -250,6 +280,7 @@ export class MIDIAccess implements WebMidi.MIDIAccess {
     devices.outputs.forEach((device) => {
       const output = new MIDIOutput(device.id);
       output.name = device.name;
+      output._access = this;
       outputs.set(device.id, output);
     });
 

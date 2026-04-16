@@ -34,9 +34,20 @@ console.log(`Using input: ${input.name}`);
 assert(input.state === "connected", `state is "connected" initially`);
 assert(input.connection === "closed", `connection is "closed" initially`);
 
+// Test onstatechange on port
+const portStateChanges: string[] = [];
+input.onstatechange = (e: WebMidi.MIDIConnectionEvent) => {
+  portStateChanges.push(e.port.connection);
+};
+
 // Test explicit open
 await input.open();
 assert(input.connection === "open", `connection is "open" after open()`);
+assert(portStateChanges.length === 1, `port onstatechange fired on open`);
+assert(
+  portStateChanges[0] === "open",
+  `port onstatechange event has connection "open"`,
+);
 
 // Test double open is idempotent
 await input.open();
@@ -48,6 +59,11 @@ assert(
 // Close, then let onmidimessage re-open implicitly
 await input.close();
 assert(input.connection === "closed", `connection is "closed" after close()`);
+assert(portStateChanges.length === 2, `port onstatechange fired on close`);
+assert(
+  portStateChanges[1] === "closed",
+  `port onstatechange event has connection "closed"`,
+);
 
 const received: string[] = [];
 const expected = ["90 3c 64", "80 3c 00"];
